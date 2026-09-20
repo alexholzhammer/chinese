@@ -1,18 +1,26 @@
 import { Hono } from 'hono'
 import { and, asc, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import * as t from '@/db/schema'
-import { KNOWN_SEED_DAYS, OWNER_ID, SHAKY_SEED_DAYS } from '@/config'
+import {
+  KNOWN_SEED_DAYS,
+  OWNER_ID,
+  SEED_SPREAD_MAX_DAYS,
+  SEED_SPREAD_MIN_DAYS,
+  SEED_SPREAD_PER_DAY,
+  SHAKY_SEED_DAYS,
+} from '@/config'
 import {
   applySnapshot,
   buildQueue,
   previewIntervals,
   review,
   seedAsKnown,
+  spreadSeedDays,
   type Rating,
   type SrsCard,
 } from '@/lib/srs'
 import { buildSample, buildStrata, gradeSample, type StratumKey } from '@/lib/calibration'
-import { chunked, inChunks } from './chunk'
+import { chunked, D1_PARAM_LIMIT, inChunks } from './chunk'
 import { makeDb, srsCardUpdate, toSrsCard, type Env } from './db'
 import {
   getSettings,
@@ -301,24 +309,38 @@ async function seedWords(
 ): Promise<number> {
   if (wordIds.length === 0) return 0
   const now = Date.now()
-  let count = 0
 
+  // Collect first, then place: the spread needs to know how many cards there
+  // actually are before it can size the window.
+  const rows: (typeof t.cards.$inferSelect)[] = []
   for (const chunk of chunked(wordIds)) {
-    const rows = await db
-      .select()
-      .from(t.cards)
-      .where(
-        and(
-          eq(t.cards.userId, OWNER_ID),
-          eq(t.cards.state, 'new'),
-          inArray(t.cards.wordId, chunk),
-        ),
-      )
-    if (rows.length === 0) continue
+    rows.push(
+      ...(await db
+        .select()
+        .from(t.cards)
+        .where(
+          and(
+            eq(t.cards.userId, OWNER_ID),
+            eq(t.cards.state, 'new'),
+            inArray(t.cards.wordId, chunk),
+          ),
+        )),
+    )
+  }
+  if (rows.length === 0) return 0
 
-    const statements = rows.flatMap((row) => {
-      const outcome = seedAsKnown(toSrsCard(row), now, days)
-      count += 1
+  const offsets = spreadSeedDays(
+    rows.length,
+    days,
+    SEED_SPREAD_PER_DAY,
+    SEED_SPREAD_MIN_DAYS,
+    SEED_SPREAD_MAX_DAYS,
+  )
+
+  for (const [i, batch] of chunked(rows).entries()) {
+    const statements = batch.flatMap((row, j) => {
+      const offset = offsets[i * D1_PARAM_LIMIT + j] ?? days
+      const outcome = seedAsKnown(toSrsCard(row), now, offset)
       return [
         db.update(t.cards).set(srsCardUpdate(outcome.card, now)).where(eq(t.cards.id, row.id)),
         db.insert(t.reviewLog).values({
@@ -336,7 +358,7 @@ async function seedWords(
     })
     await db.batch(statements as [(typeof statements)[number], ...typeof statements])
   }
-  return count
+  return rows.length
 }
 
 /* -------------------------- stats / settings --------------------------- */

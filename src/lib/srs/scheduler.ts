@@ -1,8 +1,10 @@
 import {
   createEmptyCard,
   fsrs,
+  GenSeedStrategyWithCardId,
   Rating as FsrsRating,
   State as FsrsState,
+  StrategyMode,
   type Card as FsrsCard,
   type FSRS,
   type Grade,
@@ -34,17 +36,32 @@ const FSRS_TO_STATE: Record<FsrsState, SrsState> = {
 }
 
 export function makeScheduler(opts: SchedulerOptions = {}): FSRS {
-  return fsrs({
+  const scheduler = fsrs({
     request_retention: opts.desiredRetention ?? 0.9,
     ...(opts.fsrsParams?.length ? { w: opts.fsrsParams } : {}),
-    // Fuzz would make intervals non-deterministic, which makes the
-    // grade-button labels lie and the tests flaky.
-    enable_fuzz: false,
+    // Fuzz is what stops cards introduced on the same day and graded the same
+    // way from travelling together for the life of the deck. Anki applies it
+    // to every interval for exactly this reason. Bands here match Anki's:
+    // +/-15% under 7 days, +/-10% to 20 days, +/-5% beyond, and nothing under
+    // 2.5 days is fuzzed at all.
+    enable_fuzz: true,
   })
+
+  // Seed the fuzz from the card's id rather than ts-fsrs's default, which
+  // mixes in the review timestamp. Keying on the id buys three things at once:
+  // different cards get different fuzz (the whole point), the same card gets
+  // the same fuzz every time (so tests are deterministic), and the interval
+  // shown on a grade button at session load is still the one applied when the
+  // card is answered a minute later.
+  return scheduler.useStrategy(StrategyMode.SEED, GenSeedStrategyWithCardId('cid'))
 }
 
-function toFsrs(card: SrsCard): FsrsCard {
+/** ts-fsrs reads `cid` off the card for the seed strategy above. */
+type SeededFsrsCard = FsrsCard & { cid: number }
+
+function toFsrs(card: SrsCard): SeededFsrsCard {
   return {
+    cid: card.id,
     due: new Date(card.due),
     stability: card.stability,
     difficulty: card.difficulty,
@@ -149,6 +166,9 @@ export function previewIntervals(
  * Deliberately *not* a skip: an unreviewed "known" word decays silently and
  * you would never find out. It is scheduled far enough out to stay out of the
  * way, and confirms itself when it comes round.
+ *
+ * `days` is passed explicitly by bulk seeding so a batch can be fanned out
+ * across a window instead of landing on one day — see spreadSeedDays.
  */
 export function seedAsKnown(
   card: SrsCard,

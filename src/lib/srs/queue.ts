@@ -72,3 +72,28 @@ export function buildQueue(input: QueueInput): SrsCard[] {
   while (n < news.length) out.push(news[n++]!)
   return out
 }
+
+/**
+ * Due-date offsets for a batch of cards being seeded as already known.
+ *
+ * The placement test seeds hundreds of cards in one go. Giving them a single
+ * due date buries one day weeks out and starves new words until it clears —
+ * 880 cards against a 200/day cap is five days of backlog. Anki solves the
+ * same problem by taking a *range* for bulk rescheduling rather than a date.
+ *
+ * Deterministic by index rather than random, so re-running calibration lands
+ * the same cards on the same days.
+ */
+export function spreadSeedDays(
+  count: number,
+  baseDays: number,
+  perDay: number,
+  minWindow: number,
+  maxWindow: number,
+): number[] {
+  if (count <= 0) return []
+  const window = Math.max(minWindow, Math.min(maxWindow, Math.ceil(count / perDay)))
+  // Centre the spread on baseDays so the average interval is unchanged.
+  const start = Math.max(1, baseDays - Math.floor(window / 2))
+  return Array.from({ length: count }, (_, i) => start + (i % window))
+}

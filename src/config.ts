@@ -37,5 +37,17 @@ export const KNOWN_SEED_DAYS = 21
 /** Interval for the middle "shaky" state in calibration triage. */
 export const SHAKY_SEED_DAYS = 3
 
+/**
+ * Bulk seeding spreads across a window rather than stacking on one date.
+ *
+ * The placement test seeds ~880 cards at once. Giving them all the same due
+ * date buries a single day three weeks out and starves new words while the
+ * backlog clears. The window is sized to hold roughly this many of them
+ * falling due per day.
+ */
+export const SEED_SPREAD_PER_DAY = 25
+export const SEED_SPREAD_MIN_DAYS = 14
+export const SEED_SPREAD_MAX_DAYS = 42
+
 /** Anki's thresholds, reused so the buckets mean what people expect. */
 export const MATURE_INTERVAL_DAYS = 21

@@ -89,7 +89,7 @@ describe('scheduler', () => {
     }
   })
 
-  it('is deterministic — fuzz is off, so button labels cannot lie', () => {
+  it('is deterministic despite fuzz, so button labels cannot lie', () => {
     const a = previewIntervals(drill(fresh(), [3, 3, 3]).card, T0 + 10 * DAY)
     const b = previewIntervals(drill(fresh(), [3, 3, 3]).card, T0 + 10 * DAY)
     expect(a).toEqual(b)
@@ -102,6 +102,56 @@ describe('scheduler', () => {
     const two = review(c, 3, T0 + 5 * DAY).card
     expect(one.due).toBe(two.due)
     expect(one.stability).toBe(two.stability)
+  })
+})
+
+describe('fuzz', () => {
+  /** A card drilled to a long, stable interval. */
+  const mature = (id: number): SrsCard => {
+    let c = newCard(id, 'recognition', T0)
+    let now = T0
+    for (let i = 0; i < 4; i++) {
+      now = Math.max(now, c.due)
+      c = review(c, 3, now).card
+    }
+    return c
+  }
+
+  it('breaks up cards that would otherwise travel together forever', () => {
+    // Identical state, identical grade — only the card id differs. Without
+    // fuzz every one of these lands on the same day, permanently.
+    const base = mature(1)
+    const at = Math.max(T0, base.due)
+    const intervals = new Set(
+      Array.from({ length: 40 }, (_, i) => review({ ...base, id: i + 1 }, 3, at).card.scheduledDays),
+    )
+    expect(intervals.size).toBeGreaterThan(5)
+  })
+
+  it('stays inside the ±5% band for long intervals', () => {
+    const base = mature(1)
+    const at = Math.max(T0, base.due)
+    const intervals = Array.from(
+      { length: 40 },
+      (_, i) => review({ ...base, id: i + 1 }, 3, at).card.scheduledDays,
+    )
+    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length
+    for (const iv of intervals) expect(Math.abs(iv - mean) / mean).toBeLessThan(0.12)
+  })
+
+  it('leaves short intervals alone — nothing under 2.5 days is fuzzed', () => {
+    const results = Array.from({ length: 20 }, (_, i) =>
+      review(newCard(i + 1, 'recognition', T0), 1, T0).card.due - T0,
+    )
+    expect(new Set(results).size).toBe(1)
+  })
+
+  it('keeps the same card on the same interval every time', () => {
+    const c = mature(7)
+    const at = Math.max(T0, c.due)
+    expect(review(c, 3, at).card.due).toBe(review(c, 3, at).card.due)
+    // and the preview a user saw at session load still matches
+    expect(previewIntervals(c, at)[3]).toBe(review(c, 3, at).card.due - at)
   })
 })
 
