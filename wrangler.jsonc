@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chinese",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chinese-db",
+      "database_id": "PLACEHOLDER_REPLACE_AFTER_d1_create",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

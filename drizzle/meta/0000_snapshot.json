@@ -1,0 +1,895 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "867d66bd-0b2f-40b7-868f-4e7357416986",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "cards": {
+      "name": "cards",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deck_id": {
+          "name": "deck_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_type": {
+          "name": "card_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "word_id": {
+          "name": "word_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sentence_id": {
+          "name": "sentence_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pattern_id": {
+          "name": "pattern_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'new'"
+        },
+        "due": {
+          "name": "due",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stability": {
+          "name": "stability",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "difficulty": {
+          "name": "difficulty",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "elapsed_days": {
+          "name": "elapsed_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "scheduled_days": {
+          "name": "scheduled_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "reps": {
+          "name": "reps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "lapses": {
+          "name": "lapses",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_review": {
+          "name": "last_review",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suspended": {
+          "name": "suspended",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "is_leech": {
+          "name": "is_leech",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "cards_user_type_word_unq": {
+          "name": "cards_user_type_word_unq",
+          "columns": [
+            "user_id",
+            "card_type",
+            "word_id"
+          ],
+          "isUnique": true
+        },
+        "cards_due_idx": {
+          "name": "cards_due_idx",
+          "columns": [
+            "user_id",
+            "due"
+          ],
+          "isUnique": false,
+          "where": "\"cards\".\"suspended\" = 0"
+        },
+        "cards_deck_idx": {
+          "name": "cards_deck_idx",
+          "columns": [
+            "deck_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cards_deck_id_decks_id_fk": {
+          "name": "cards_deck_id_decks_id_fk",
+          "tableFrom": "cards",
+          "tableTo": "decks",
+          "columnsFrom": [
+            "deck_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "cards_word_id_words_id_fk": {
+          "name": "cards_word_id_words_id_fk",
+          "tableFrom": "cards",
+          "tableTo": "words",
+          "columnsFrom": [
+            "word_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cards_type_ck": {
+          "name": "cards_type_ck",
+          "value": "\"cards\".\"card_type\" IN ('recognition','typing','audio')"
+        },
+        "cards_state_ck": {
+          "name": "cards_state_ck",
+          "value": "\"cards\".\"state\" IN ('new','learning','review','relearning')"
+        },
+        "cards_one_item_ck": {
+          "name": "cards_one_item_ck",
+          "value": "(\"cards\".\"word_id\" IS NOT NULL) + (\"cards\".\"sentence_id\" IS NOT NULL) + (\"cards\".\"pattern_id\" IS NOT NULL) = 1"
+        }
+      }
+    },
+    "deck_words": {
+      "name": "deck_words",
+      "columns": {
+        "deck_id": {
+          "name": "deck_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "word_id": {
+          "name": "word_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "added_at": {
+          "name": "added_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "introduction_rank": {
+          "name": "introduction_rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "deck_words_rank_idx": {
+          "name": "deck_words_rank_idx",
+          "columns": [
+            "deck_id",
+            "introduction_rank"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "deck_words_deck_id_decks_id_fk": {
+          "name": "deck_words_deck_id_decks_id_fk",
+          "tableFrom": "deck_words",
+          "tableTo": "decks",
+          "columnsFrom": [
+            "deck_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "deck_words_word_id_words_id_fk": {
+          "name": "deck_words_word_id_words_id_fk",
+          "tableFrom": "deck_words",
+          "tableTo": "words",
+          "columnsFrom": [
+            "word_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "deck_words_deck_id_word_id_pk": {
+          "columns": [
+            "deck_id",
+            "word_id"
+          ],
+          "name": "deck_words_deck_id_word_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "deck_words_source_ck": {
+          "name": "deck_words_source_ck",
+          "value": "\"deck_words\".\"source\" IN ('hsk','duchinese','reader','manual')"
+        }
+      }
+    },
+    "decks": {
+      "name": "decks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled_card_types": {
+          "name": "enabled_card_types",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {
+        "decks_user_name_unq": {
+          "name": "decks_user_name_unq",
+          "columns": [
+            "user_id",
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "examples": {
+      "name": "examples",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "simplified": {
+          "name": "simplified",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinyin": {
+          "name": "pinyin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "translation": {
+          "name": "translation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'duchinese'"
+        }
+      },
+      "indexes": {
+        "examples_simplified_unq": {
+          "name": "examples_simplified_unq",
+          "columns": [
+            "simplified"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "readings": {
+      "name": "readings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "word_id": {
+          "name": "word_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "pinyin": {
+          "name": "pinyin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinyin_numeric": {
+          "name": "pinyin_numeric",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "meanings": {
+          "name": "meanings",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_primary": {
+          "name": "is_primary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "readings_word_idx": {
+          "name": "readings_word_idx",
+          "columns": [
+            "word_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "readings_word_id_words_id_fk": {
+          "name": "readings_word_id_words_id_fk",
+          "tableFrom": "readings",
+          "tableTo": "words",
+          "columnsFrom": [
+            "word_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "review_log": {
+      "name": "review_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state_before": {
+          "name": "state_before",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "due_before": {
+          "name": "due_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stability_before": {
+          "name": "stability_before",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "difficulty_before": {
+          "name": "difficulty_before",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "elapsed_days_before": {
+          "name": "elapsed_days_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scheduled_days_before": {
+          "name": "scheduled_days_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reps_before": {
+          "name": "reps_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lapses_before": {
+          "name": "lapses_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_review_before": {
+          "name": "last_review_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "typed_answer": {
+          "name": "typed_answer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "voided": {
+          "name": "voided",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "review_log_card_idx": {
+          "name": "review_log_card_idx",
+          "columns": [
+            "card_id",
+            "reviewed_at"
+          ],
+          "isUnique": false
+        },
+        "review_log_user_idx": {
+          "name": "review_log_user_idx",
+          "columns": [
+            "user_id",
+            "reviewed_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "review_log_card_id_cards_id_fk": {
+          "name": "review_log_card_id_cards_id_fk",
+          "tableFrom": "review_log",
+          "tableTo": "cards",
+          "columnsFrom": [
+            "card_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "review_log_rating_ck": {
+          "name": "review_log_rating_ck",
+          "value": "\"review_log\".\"rating\" BETWEEN 1 AND 4"
+        }
+      }
+    },
+    "settings": {
+      "name": "settings",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "new_words_per_day": {
+          "name": "new_words_per_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "max_reviews_per_day": {
+          "name": "max_reviews_per_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "desired_retention": {
+          "name": "desired_retention",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fsrs_params": {
+          "name": "fsrs_params",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "day_cutoff_hour": {
+          "name": "day_cutoff_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "calibrated_at": {
+          "name": "calibrated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "word_examples": {
+      "name": "word_examples",
+      "columns": {
+        "word_id": {
+          "name": "word_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "example_id": {
+          "name": "example_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "word_examples_word_id_words_id_fk": {
+          "name": "word_examples_word_id_words_id_fk",
+          "tableFrom": "word_examples",
+          "tableTo": "words",
+          "columnsFrom": [
+            "word_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "word_examples_example_id_examples_id_fk": {
+          "name": "word_examples_example_id_examples_id_fk",
+          "tableFrom": "word_examples",
+          "tableTo": "examples",
+          "columnsFrom": [
+            "example_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "word_examples_word_id_example_id_pk": {
+          "columns": [
+            "word_id",
+            "example_id"
+          ],
+          "name": "word_examples_word_id_example_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "words": {
+      "name": "words",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "simplified": {
+          "name": "simplified",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hsk_new": {
+          "name": "hsk_new",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hsk_old": {
+          "name": "hsk_old",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "frequency_rank": {
+          "name": "frequency_rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "radical": {
+          "name": "radical",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pos": {
+          "name": "pos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        }
+      },
+      "indexes": {
+        "words_simplified_unq": {
+          "name": "words_simplified_unq",
+          "columns": [
+            "simplified"
+          ],
+          "isUnique": true
+        },
+        "words_hsk_new_idx": {
+          "name": "words_hsk_new_idx",
+          "columns": [
+            "hsk_new"
+          ],
+          "isUnique": false
+        },
+        "words_freq_idx": {
+          "name": "words_freq_idx",
+          "columns": [
+            "frequency_rank"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}
