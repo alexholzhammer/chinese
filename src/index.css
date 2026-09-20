@@ -1,0 +1,96 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f2f0ec;
+  --border: #e2ded7;
+  --text: #1c1b19;
+  --text-dim: #6b6862;
+  --accent: #b4462f;
+
+  /* Tone colours. Chosen to stay distinguishable in both themes and for the
+     commonest form of colour blindness — red/green are not a pair here. */
+  --tone-1: #c2410c;
+  --tone-2: #047857;
+  --tone-3: #6d28d9;
+  --tone-4: #1d4ed8;
+  --tone-5: #78716c;
+
+  --again: #b91c1c;
+  --hard: #b45309;
+  --good: #15803d;
+  --easy: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #16161a;
+    --surface: #1e1e23;
+    --surface-2: #26262c;
+    --border: #34343c;
+    --text: #ececf0;
+    --text-dim: #9b9aa3;
+    --accent: #e8734f;
+
+    --tone-1: #fb923c;
+    --tone-2: #34d399;
+    --tone-3: #c4b5fd;
+    --tone-4: #7dd3fc;
+    --tone-5: #a8a29e;
+
+    --again: #f87171;
+    --hard: #fbbf24;
+    --good: #4ade80;
+    --easy: #60a5fa;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #16161a;
+  --surface: #1e1e23;
+  --surface-2: #26262c;
+  --border: #34343c;
+  --text: #ececf0;
+  --text-dim: #9b9aa3;
+  --accent: #e8734f;
+  --tone-1: #fb923c;
+  --tone-2: #34d399;
+  --tone-3: #c4b5fd;
+  --tone-4: #7dd3fc;
+  --tone-5: #a8a29e;
+  --again: #f87171;
+  --hard: #fbbf24;
+  --good: #4ade80;
+  --easy: #60a5fa;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+/* Hanzi wants a font with proper simplified glyphs and a bit more air. */
+.hanzi {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+}
+
+.tone-1 { color: var(--tone-1); }
+.tone-2 { color: var(--tone-2); }
+.tone-3 { color: var(--tone-3); }
+.tone-4 { color: var(--tone-4); }
+.tone-5 { color: var(--tone-5); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
