@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a76d620d-98d0-431c-a4e6-bad50fd6b0f6",
+  "id": "7711e230-f3e9-4bf1-929d-38b513b325a8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "cards": {
@@ -610,6 +610,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'review'"
+        },
         "duration_ms": {
           "name": "duration_ms",
           "type": "integer",
@@ -679,6 +687,10 @@
         "review_log_rating_ck": {
           "name": "review_log_rating_ck",
           "value": "\"review_log\".\"rating\" BETWEEN 1 AND 4"
+        },
+        "review_log_source_ck": {
+          "name": "review_log_source_ck",
+          "value": "\"review_log\".\"source\" IN ('review','seed','know')"
         }
       }
     },

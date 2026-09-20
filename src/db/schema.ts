@@ -204,6 +204,13 @@ export const reviewLog = sqliteTable(
     lapsesBefore: integer('lapses_before').notNull(),
     lastReviewBefore: integer('last_review_before'),
 
+    /**
+     * How this row came about. Only 'review' is a graded answer; 'seed' is
+     * calibration and 'know' is the k key. Those two must not count against
+     * the daily new-card budget — seeding 880 cards would otherwise consume
+     * the next three months of it in one go.
+     */
+    source: text('source').notNull().default('review'),
     durationMs: integer('duration_ms'),
     typedAnswer: text('typed_answer'),
     reviewedAt: integer('reviewed_at').notNull(),
@@ -213,6 +220,7 @@ export const reviewLog = sqliteTable(
     index('review_log_card_idx').on(t.cardId, t.reviewedAt),
     index('review_log_user_idx').on(t.userId, t.reviewedAt),
     check('review_log_rating_ck', sql`${t.rating} BETWEEN 1 AND 4`),
+    check('review_log_source_ck', sql`${t.source} IN ('review','seed','know')`),
   ],
 )
 

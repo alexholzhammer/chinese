@@ -86,12 +86,14 @@ CREATE TABLE `review_log` (
 	`reps_before` integer NOT NULL,
 	`lapses_before` integer NOT NULL,
 	`last_review_before` integer,
+	`source` text DEFAULT 'review' NOT NULL,
 	`duration_ms` integer,
 	`typed_answer` text,
 	`reviewed_at` integer NOT NULL,
 	`voided` integer DEFAULT false NOT NULL,
 	FOREIGN KEY (`card_id`) REFERENCES `cards`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "review_log_rating_ck" CHECK("review_log"."rating" BETWEEN 1 AND 4)
+	CONSTRAINT "review_log_rating_ck" CHECK("review_log"."rating" BETWEEN 1 AND 4),
+	CONSTRAINT "review_log_source_ck" CHECK("review_log"."source" IN ('review','seed','know'))
 );
 --> statement-breakpoint
 CREATE INDEX `review_log_card_idx` ON `review_log` (`card_id`,`reviewed_at`);--> statement-breakpoint
