@@ -41,6 +41,16 @@ const remote = args.has('--remote')
 const q = (v: string) => `'${v.replace(/'/g, "''")}'`
 const qn = (v: number | null) => (v === null ? 'NULL' : String(v))
 
+/** Applied per wrangler invocation. Small enough to stay well clear of
+ *  whatever limit a single huge file runs into, big enough to stay quick. */
+const STATEMENTS_PER_BATCH = 1500
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
 function main() {
   const hsk: HskEntry[] = JSON.parse(readFileSync(root('data/hsk/hsk-complete.min.json'), 'utf8'))
   const csv = readFileSync(root('data/vocab/duchinese-2026-09-19.csv'), 'utf8')
@@ -171,24 +181,48 @@ function main() {
   }
 
   const dir = mkdtempSync(join(tmpdir(), 'chinese-import-'))
-  const file = join(dir, 'import.sql')
-  writeFileSync(file, sql.join('\n'))
   console.log(`\nApplying to ${remote ? 'remote' : 'local'} D1 ...`)
-  try {
-    // Capture rather than inherit: wrangler echoes a result object per
-    // statement, and there are ~15,000 of them.
-    execFileSync(
-      'npx',
-      ['wrangler', 'd1', 'execute', DB_NAME, remote ? '--remote' : '--local', '--file', file, '--yes'],
-      { stdio: ['ignore', 'pipe', 'pipe'] },
-    )
-  } catch (err) {
-    const e = err as { stderr?: Buffer; stdout?: Buffer }
-    console.error(e.stderr?.toString() ?? e.stdout?.toString() ?? String(err))
-    process.exitCode = 1
-    return
+
+  // One 15,000-statement file is fragile — wrangler 3 crashed workerd outright
+  // on it, and a single failure anywhere gives no clue where. Apply in chunks
+  // so progress is visible and a failure names the batch it happened in.
+  const batches = chunk(sql, STATEMENTS_PER_BATCH)
+  for (const [i, batch] of batches.entries()) {
+    const file = join(dir, `import-${String(i).padStart(3, '0')}.sql`)
+    writeFileSync(file, batch.join('\n'))
+    process.stdout.write(`  batch ${i + 1}/${batches.length} ... `)
+    try {
+      execFileSync(
+        'npx',
+        [
+          'wrangler',
+          'd1',
+          'execute',
+          DB_NAME,
+          remote ? '--remote' : '--local',
+          '--file',
+          file,
+          '--yes',
+        ],
+        // stdout is discarded outright, not piped: wrangler echoes a JSON
+        // result object per statement, and piping that into execFileSync's
+        // 1 MB default buffer kills the child once it overflows. stderr is
+        // inherited so a real error always reaches the terminal — capturing
+        // and re-printing it is how the previous version swallowed failures.
+        { stdio: ['ignore', 'ignore', 'inherit'] },
+      )
+    } catch {
+      console.error(
+        `\n\nFailed on batch ${i + 1} of ${batches.length}. wrangler's own error is above.` +
+          `\nThe SQL for this batch is at ${file} — run it by hand to see the failing statement:` +
+          `\n  npx wrangler d1 execute ${DB_NAME} ${remote ? '--remote' : '--local'} --file ${file}`,
+      )
+      process.exitCode = 1
+      return
+    }
+    console.log('ok')
   }
-  console.log('Done. Re-running this is safe: existing cards keep their schedule.')
+  console.log('\nDone. Re-running this is safe: existing cards keep their schedule.')
 }
 
 main()
