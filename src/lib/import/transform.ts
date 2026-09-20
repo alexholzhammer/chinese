@@ -45,9 +45,41 @@ export interface ExampleSeed {
 const UNRANKED = 1_000_000
 const LEVEL_ORDER: Record<string, number> = { n1: 1, n2: 2, n3: 3, n4: 4, n5: 5, n6: 6, n7: 7 }
 
-/** A form glossed only as a surname is not what you want read aloud or tested. */
-export function isSurnameOnly(meanings: string[]): boolean {
-  return meanings.length > 0 && meanings.every((m) => /^surname\b/i.test(m.trim()))
+/**
+ * Is this reading a marginal one — a proper noun or a cross-reference rather
+ * than the word you are actually learning?
+ *
+ * Two signals. CC-CEDICT capitalises the pinyin of proper nouns, so 周 `Zhōu`
+ * (the surname and dynasty) is marked but 周 `zhōu` (week) is not. And a
+ * reading whose glosses are all "surname …", "variant of …" or "see …" is a
+ * pointer, not a meaning.
+ */
+export function isMarginalReading(pinyin: string, meanings: string[]): boolean {
+  const firstLetter = pinyin.trim().normalize('NFD').replace(/[^A-Za-z]/g, '')[0]
+  if (firstLetter && firstLetter === firstLetter.toUpperCase()) return true
+  if (meanings.length === 0) return true
+  return meanings.every((m) => /^(surname|variant of|old variant|see|abbr\. for)\b/i.test(m.trim()))
+}
+
+/**
+ * Which reading of a word is *the* reading.
+ *
+ * The dataset lists forms alphabetically by pinyin, which carries no
+ * information about importance — taking the first one made 说 read `shuì`
+ * ("to persuade") rather than `shuō`, and 打 read `dá` rather than `dǎ`.
+ *
+ * Rank instead by how much the dictionary has to say about each reading:
+ * the dominant one carries far more glosses (说 shuō has nine, shuì has one).
+ * Marginal readings are only considered if there is nothing else.
+ */
+export function pickPrimaryIndex(forms: { pinyin: string; meanings: string[] }[]): number {
+  if (forms.length === 0) return -1
+  const score = (f: { pinyin: string; meanings: string[] }) => f.meanings.length
+  const candidates = forms
+    .map((f, i) => ({ f, i }))
+    .filter(({ f }) => !isMarginalReading(f.pinyin, f.meanings))
+  const pool = candidates.length > 0 ? candidates : forms.map((f, i) => ({ f, i }))
+  return pool.reduce((best, cur) => (score(cur.f) > score(best.f) ? cur : best)).i
 }
 
 function lowestLevel(levels: string[], prefix: string): string | null {
@@ -80,17 +112,23 @@ export function hskToWords(
     }
     const forms = [...merged.values()]
 
-    // Prefer a real reading over a surname gloss for audio and summaries.
-    const primaryIdx = forms.findIndex((f) => !isSurnameOnly(f.meanings))
+    const primaryIdx = pickPrimaryIndex(forms)
 
-    const readings: ReadingSeed[] = forms.map((f, idx) => ({
+    // List the main reading first. Sorting by the dataset's own order would
+    // put 说 shuì above 说 shuō purely because s-h-u-i sorts before s-h-u-o.
+    const ordered = [
+      forms[primaryIdx]!,
+      ...forms.filter((_, i) => i !== primaryIdx),
+    ]
+
+    const readings: ReadingSeed[] = ordered.map((f, idx) => ({
       sortOrder: idx,
       pinyin: f.pinyin,
       // Derive rather than trust: the dataset's numeric field is
       // inconsistently cased ("A1 la1 bo2 yu3").
       pinyinNumeric: toNumericPinyin(f.pinyin),
       meanings: f.meanings,
-      isPrimary: idx === (primaryIdx === -1 ? 0 : primaryIdx),
+      isPrimary: idx === 0,
     }))
 
     out.push({

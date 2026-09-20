@@ -6,7 +6,8 @@ import { parseCsvRecords } from '@/lib/import/csv'
 import {
   hskToWords,
   introductionOrder,
-  isSurnameOnly,
+  isMarginalReading,
+  pickPrimaryIndex,
   parseDuChinese,
   type HskEntry,
 } from '@/lib/import/transform'
@@ -46,7 +47,9 @@ describe('HSK library', () => {
   it('keeps 还 as ONE word with hái, huán and the surname', () => {
     const huan = bySimplified.get('还')!
     expect(huan).toBeDefined()
-    expect(huan.readings.map((r) => r.pinyin)).toEqual(['Huán', 'hái', 'huán'])
+    // Ordered primary-first, not alphabetically.
+    expect(huan.readings.map((r) => r.pinyin).sort()).toEqual(['Huán', 'hái', 'huán'].sort())
+    expect(huan.readings[0]!.pinyin).toBe('hái')
   })
 
   it('picks hái as 还’s primary reading, not the surname', () => {
@@ -56,8 +59,16 @@ describe('HSK library', () => {
   })
 
   it('keeps both readings of 长 and 把', () => {
-    expect(bySimplified.get('长')!.readings.map((r) => r.pinyin)).toEqual(['cháng', 'zhǎng'])
-    expect(bySimplified.get('把')!.readings.map((r) => r.pinyin)).toEqual(['bǎ', 'bà'])
+    // 长 is the honest limit of the heuristic: cháng (long) and zhǎng (to
+    // grow) are both core, so ranking by gloss count picks zhǎng on 7 vs 5.
+    // A coin flip rather than an error — the card shows both either way.
+    expect(bySimplified.get('长')!.readings.map((r) => r.pinyin).sort()).toEqual(
+      ['cháng', 'zhǎng'].sort(),
+    )
+    expect(bySimplified.get('把')!.readings.map((r) => r.pinyin).sort()).toEqual(
+      ['bà', 'bǎ'].sort(),
+    )
+    expect(bySimplified.get('把')!.readings[0]!.pinyin).toBe('bǎ')
   })
 
   it('excludes bands outside the configured range', () => {
@@ -72,9 +83,15 @@ describe('HSK library', () => {
     expect(bang.readings[0]!.meanings.length).toBeGreaterThan(1)
     expect(bySimplified.get('了解')!.readings).toHaveLength(1)
     // 干 has four gān rows, two Gān and one gàn -> three pronunciations.
-    expect(bySimplified.get('干')!.readings.map((r) => r.pinyin)).toEqual(['gān', 'Gān', 'gàn'])
-    // Case stays significant: the surname reading is not merged away.
-    expect(bySimplified.get('安')!.readings.map((r) => r.pinyin)).toEqual(['Ān', 'ān'])
+    expect(bySimplified.get('干')!.readings.map((r) => r.pinyin).sort()).toEqual(
+      ['Gān', 'gān', 'gàn'].sort(),
+    )
+    // Case stays significant: the surname reading is not merged away, but it
+    // is not the one shown as the main reading either.
+    expect(bySimplified.get('安')!.readings.map((r) => r.pinyin).sort()).toEqual(
+      ['Ān', 'ān'].sort(),
+    )
+    expect(bySimplified.get('安')!.readings[0]!.pinyin).toBe('ān')
     for (const w of words) {
       const keys = w.readings.map((r) => `${r.pinyin}|${r.meanings.join('/')}`)
       expect(new Set(keys).size).toBe(keys.length)
@@ -175,15 +192,91 @@ describe('card generation', () => {
   })
 })
 
-describe('isSurnameOnly', () => {
-  it('spots a surname-only gloss', () => {
-    expect(isSurnameOnly(['surname Huan'])).toBe(true)
-    expect(isSurnameOnly(['surname Li', 'surname Wang'])).toBe(true)
+describe('isMarginalReading', () => {
+  it('treats capitalised pinyin as a proper noun', () => {
+    // CC-CEDICT's convention: 周 Zhōu is the surname, 周 zhōu is "week".
+    expect(isMarginalReading('Zhōu', ['surname Zhou', 'Zhou Dynasty'])).toBe(true)
+    expect(isMarginalReading('zhōu', ['week', 'cycle'])).toBe(false)
   })
 
-  it('leaves a real meaning alone', () => {
-    expect(isSurnameOnly(['still', 'yet'])).toBe(false)
-    expect(isSurnameOnly(['surname Huan', 'to return'])).toBe(false)
-    expect(isSurnameOnly([])).toBe(false)
+  it('treats a gloss that only points elsewhere as marginal', () => {
+    expect(isMarginalReading('huán', ['surname Huan'])).toBe(true)
+    expect(isMarginalReading('shuō', ['variant of 说'])).toBe(true)
+    expect(isMarginalReading('x', [])).toBe(true)
+  })
+
+  it('leaves a real reading alone', () => {
+    expect(isMarginalReading('hái', ['still', 'yet'])).toBe(false)
+    expect(isMarginalReading('huán', ['surname Huan', 'to return'])).toBe(false)
+  })
+})
+
+describe('pickPrimaryIndex', () => {
+  it('picks the reading the dictionary says most about, not the first', () => {
+    // The dataset lists forms alphabetically, so shuì comes before shuō.
+    const forms = [
+      { pinyin: 'shuì', meanings: ['to persuade'] },
+      { pinyin: 'shuō', meanings: ['to speak', 'to talk', 'to say', 'to explain'] },
+    ]
+    expect(pickPrimaryIndex(forms)).toBe(1)
+  })
+
+  it('skips a proper noun even when it is listed first', () => {
+    const forms = [
+      { pinyin: 'Zhōu', meanings: ['surname Zhou', 'Zhou Dynasty'] },
+      { pinyin: 'zhōu', meanings: ['week', 'cycle', 'circuit'] },
+    ]
+    expect(pickPrimaryIndex(forms)).toBe(1)
+  })
+
+  it('falls back to the fullest reading when every one is marginal', () => {
+    const forms = [
+      { pinyin: 'Ā', meanings: ['surname A'] },
+      { pinyin: 'Ē', meanings: ['surname E', 'place name'] },
+    ]
+    expect(pickPrimaryIndex(forms)).toBe(1)
+  })
+
+  it('handles a single reading and an empty list', () => {
+    expect(pickPrimaryIndex([{ pinyin: 'de', meanings: ['of'] }])).toBe(0)
+    expect(pickPrimaryIndex([])).toBe(-1)
+  })
+})
+
+describe('primary readings in the real library', () => {
+  const primaryOf = (w: string) => bySimplified.get(w)!.readings.find((r) => r.isPrimary)!
+
+  it('gets the words that were wrong before', () => {
+    expect(primaryOf('说').pinyin).toBe('shuō')
+    expect(primaryOf('打').pinyin).toBe('dǎ')
+    expect(primaryOf('行').pinyin).toBe('xíng')
+    expect(primaryOf('周').pinyin).toBe('zhōu')
+    expect(primaryOf('片').pinyin).toBe('piàn')
+    expect(primaryOf('还').pinyin).toBe('hái')
+  })
+
+  it('lists the primary reading first', () => {
+    for (const w of words) {
+      expect(w.readings[0]!.isPrimary).toBe(true)
+      expect(w.readings.filter((r) => r.isPrimary)).toHaveLength(1)
+    }
+  })
+
+  it('never picks a proper-noun reading when a real one exists', () => {
+    for (const w of words) {
+      const primary = w.readings.find((r) => r.isPrimary)!
+      const hasReal = w.readings.some((r) => !isMarginalReading(r.pinyin, r.meanings))
+      if (hasReal) expect(isMarginalReading(primary.pinyin, primary.meanings)).toBe(false)
+    }
+  })
+
+  it('never picks a reading another one clearly beats on gloss count', () => {
+    for (const w of words) {
+      const primary = w.readings.find((r) => r.isPrimary)!
+      const real = w.readings.filter((r) => !isMarginalReading(r.pinyin, r.meanings))
+      if (real.length === 0) continue
+      const best = Math.max(...real.map((r) => r.meanings.length))
+      expect(primary.meanings.length).toBe(best)
+    }
   })
 })
