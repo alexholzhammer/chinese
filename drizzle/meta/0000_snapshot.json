@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "867d66bd-0b2f-40b7-868f-4e7357416986",
+  "id": "a76d620d-98d0-431c-a4e6-bad50fd6b0f6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "cards": {
@@ -487,6 +487,14 @@
             "word_id"
           ],
           "isUnique": false
+        },
+        "readings_word_pinyin_unq": {
+          "name": "readings_word_pinyin_unq",
+          "columns": [
+            "word_id",
+            "pinyin"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {

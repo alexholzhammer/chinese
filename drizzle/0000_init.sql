@@ -71,6 +71,7 @@ CREATE TABLE `readings` (
 );
 --> statement-breakpoint
 CREATE INDEX `readings_word_idx` ON `readings` (`word_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `readings_word_pinyin_unq` ON `readings` (`word_id`,`pinyin`);--> statement-breakpoint
 CREATE TABLE `review_log` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`card_id` integer NOT NULL,

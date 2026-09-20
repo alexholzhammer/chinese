@@ -53,7 +53,11 @@ export const readings = sqliteTable(
     /** The reading used for audio and for the single-line summary. */
     isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(false),
   },
-  (t) => [index('readings_word_idx').on(t.wordId)],
+  (t) => [
+    index('readings_word_idx').on(t.wordId),
+    // Lets the importer upsert a reading instead of duplicating it on re-run.
+    uniqueIndex('readings_word_pinyin_unq').on(t.wordId, t.pinyin),
+  ],
 )
 
 export const examples = sqliteTable(
