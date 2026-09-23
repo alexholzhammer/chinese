@@ -3,6 +3,7 @@ import { api, type WordContent } from '@/lib/api'
 import { bucketOf, type Bucket, type SrsCard } from '@/lib/srs'
 import { Hanzi } from '@/components/chinese/Hanzi'
 import { Pinyin } from '@/components/chinese/Pinyin'
+import { MnemonicEditor } from '@/components/review/MnemonicEditor'
 
 const BUCKET_COLOR: Record<Bucket, string> = {
   new: 'var(--text-dim)',
@@ -15,6 +16,15 @@ export function Library() {
   const [rows, setRows] = useState<{ card: SrsCard; word: WordContent | null }[] | null>(null)
   const [query, setQuery] = useState('')
   const [bucket, setBucket] = useState<Bucket | 'all' | 'leech'>('all')
+
+  const saveMnemonic = async (wordId: number, text: string) => {
+    const { mnemonic } = await api.saveMnemonic(wordId, text)
+    setRows(
+      (prev) =>
+        prev?.map((r) => (r.word?.wordId === wordId ? { ...r, word: { ...r.word, mnemonic } } : r)) ??
+        prev,
+    )
+  }
 
   useEffect(() => {
     void api.library(500).then(setRows).catch(() => setRows([]))
@@ -76,12 +86,19 @@ export function Library() {
           const primary = word!.readings.find((r) => r.isPrimary) ?? word!.readings[0]
           const b = bucketOf(card)
           return (
-            <li key={card.id} className="flex items-center gap-4 py-3" style={{ borderColor: 'var(--border)' }}>
+            <li key={card.id} className="flex items-start gap-4 py-3" style={{ borderColor: 'var(--border)' }}>
               <Hanzi text={word!.simplified} pinyin={primary?.pinyin} className="w-24 shrink-0 text-2xl" />
               <div className="min-w-0 flex-1">
                 {primary && <Pinyin text={primary.pinyin} className="text-sm" />}
                 <div className="truncate text-sm" style={{ color: 'var(--text-dim)' }}>
                   {primary?.meanings.join('; ')}
+                </div>
+                <div className="mt-1.5">
+                  <MnemonicEditor
+                    value={word!.mnemonic}
+                    onSave={(text) => saveMnemonic(word!.wordId, text)}
+                    compact
+                  />
                 </div>
               </div>
               {word!.hskNew && (

@@ -6,6 +6,7 @@ export interface WordContent {
   hskNew: string | null
   readings: { pinyin: string; meanings: string[]; isPrimary: boolean }[]
   example: { simplified: string; pinyin: string; translation: string } | null
+  mnemonic: string | null
 }
 
 export interface SessionCard {
@@ -56,7 +57,15 @@ export const api = {
   saveDeck: (id: number, body: { enabled?: boolean; enabledCardTypes?: string[] }) =>
     request<{ ok: boolean }>(`/decks/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
-  submitReviews: (reviews: { cardId: number; rating: Rating; durationMs?: number; typedAnswer?: string }[]) =>
+  submitReviews: (
+    reviews: {
+      cardId: number
+      rating: Rating
+      durationMs?: number
+      typedAnswer?: string
+      usedHint?: boolean
+    }[],
+  ) =>
     request<{ applied: number; leeches: number[] }>('/reviews', {
       method: 'POST',
       body: JSON.stringify({ reviews }),
@@ -79,6 +88,12 @@ export const api = {
       seeded: number
       triage: string[]
     }>('/calibrate', { method: 'POST', body: JSON.stringify({ answers }) }),
+
+  saveMnemonic: (wordId: number, text: string) =>
+    request<{ ok: boolean; mnemonic: string | null }>(`/words/${wordId}/mnemonic`, {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    }),
 
   library: (limit = 200) => request<{ card: SrsCard; word: WordContent | null }[]>(`/library?limit=${limit}`),
 }

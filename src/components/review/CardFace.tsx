@@ -3,6 +3,51 @@ import { Hanzi } from '@/components/chinese/Hanzi'
 import { Pinyin } from '@/components/chinese/Pinyin'
 import { AudioButton } from '@/components/chinese/AudioButton'
 import type { WordContent } from '@/lib/api'
+import { MnemonicEditor } from './MnemonicEditor'
+
+/**
+ * The Eselsbrücke, shown only once asked for.
+ *
+ * Never revealed automatically: if the hook appeared every time, the card
+ * would stop testing the word and start testing the hook, and there would be
+ * no way to notice the crutch was no longer needed.
+ */
+function Hint({
+  text,
+  shown,
+  onShow,
+}: {
+  text: string | null
+  shown: boolean
+  onShow: () => void
+}) {
+  if (!text) return null
+  if (!shown) {
+    return (
+      <button
+        onClick={onShow}
+        className="rounded-md border px-3 py-1.5 text-xs"
+        style={{ borderColor: 'var(--border)', color: 'var(--text-dim)' }}
+      >
+        Eselsbrücke <span className="opacity-60">h</span>
+      </button>
+    )
+  }
+  return (
+    <div
+      className="w-full rounded-lg border px-4 py-3 text-sm"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+    >
+      <span
+        className="mb-1 block text-[10px] uppercase tracking-wide"
+        style={{ color: 'var(--text-dim)' }}
+      >
+        Eselsbrücke
+      </span>
+      <span className="whitespace-pre-wrap">{text}</span>
+    </div>
+  )
+}
 
 export function CardFront({
   cardType,
@@ -10,14 +55,19 @@ export function CardFront({
   typed,
   onTyped,
   onSubmit,
+  hintShown,
+  onShowHint,
 }: {
   cardType: CardType
   word: WordContent
   typed: string
   onTyped: (v: string) => void
   onSubmit: () => void
+  hintShown: boolean
+  onShowHint: () => void
 }) {
   const primary = word.readings.find((r) => r.isPrimary) ?? word.readings[0]
+  const hint = <Hint text={word.mnemonic} shown={hintShown} onShow={onShowHint} />
 
   if (cardType === 'audio') {
     return (
@@ -26,6 +76,7 @@ export function CardFront({
         <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
           What does it mean, and how is it written?
         </p>
+        {hint}
       </div>
     )
   }
@@ -57,6 +108,9 @@ export function CardFront({
         <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
           Enter to check
         </p>
+        {/* Button rather than the h key here: focus is in the answer box, so
+            h has to stay available for typing. */}
+        {hint}
       </div>
     )
   }
@@ -67,6 +121,7 @@ export function CardFront({
       <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
         Meaning and pinyin?
       </p>
+      {hint}
     </div>
   )
 }
@@ -75,10 +130,12 @@ export function CardBack({
   word,
   typed,
   correct,
+  onSaveMnemonic,
 }: {
   word: WordContent
   typed?: string
   correct?: boolean | null
+  onSaveMnemonic: (text: string) => Promise<void> | void
 }) {
   const primary = word.readings.find((r) => r.isPrimary) ?? word.readings[0]
 
@@ -142,6 +199,10 @@ export function CardBack({
           </div>
         </div>
       )}
+
+      {/* Right here, not tucked away in the Library: the moment you most want
+          to write a hook is straight after a word you just failed. */}
+      <MnemonicEditor value={word.mnemonic} onSave={onSaveMnemonic} />
 
       {word.hskNew && (
         <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-dim)' }}>

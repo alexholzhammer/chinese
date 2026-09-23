@@ -20,6 +20,7 @@ import {
   type SrsCard,
 } from '@/lib/srs'
 import { buildSample, buildStrata, gradeSample, type StratumKey } from '@/lib/calibration'
+import { normalizeMnemonic } from '@/lib/vocab/mnemonic'
 import { chunked, D1_PARAM_LIMIT, inChunks } from './chunk'
 import { makeDb, srsCardUpdate, toSrsCard, type Env } from './db'
 import {
@@ -100,6 +101,8 @@ interface ReviewInput {
   rating: Rating
   durationMs?: number
   typedAnswer?: string
+  /** True when the Eselsbrücke was revealed before answering. */
+  usedHint?: boolean
 }
 
 api.post('/reviews', async (c) => {
@@ -141,6 +144,7 @@ api.post('/reviews', async (c) => {
         rating: item.rating,
         ...outcome.snapshot,
         source: 'review',
+        usedHint: item.usedHint ?? false,
         durationMs: item.durationMs ?? null,
         typedAnswer: item.typedAnswer ?? null,
         reviewedAt: now,
@@ -407,6 +411,48 @@ api.put('/decks/:id', async (c) => {
     })
     .where(and(eq(t.decks.id, id), eq(t.decks.userId, OWNER_ID)))
   return c.json({ ok: true })
+})
+
+/* ------------------------------- mnemonics ------------------------------ */
+
+/**
+ * Write or clear a word's Eselsbrücke.
+ *
+ * Clearing it deletes the row rather than storing an empty string, so the card
+ * doesn't keep offering a Hint button with nothing behind it.
+ */
+api.put('/words/:id/mnemonic', async (c) => {
+  const db = makeDb(c.env.DB)
+  const wordId = Number(c.req.param('id'))
+  if (!Number.isInteger(wordId)) return c.json({ ok: false, reason: 'bad word id' }, 400)
+
+  const body = (await c.req.json()) as { text?: unknown }
+  const { text, tooLong } = normalizeMnemonic(body.text)
+  const now = Date.now()
+
+  if (text === null) {
+    await db
+      .delete(t.mnemonics)
+      .where(and(eq(t.mnemonics.userId, OWNER_ID), eq(t.mnemonics.wordId, wordId)))
+    return c.json({ ok: true, mnemonic: null })
+  }
+
+  const exists = await db
+    .select({ wordId: t.words.id })
+    .from(t.words)
+    .where(eq(t.words.id, wordId))
+    .limit(1)
+  if (exists.length === 0) return c.json({ ok: false, reason: 'no such word' }, 404)
+
+  await db
+    .insert(t.mnemonics)
+    .values({ userId: OWNER_ID, wordId, text, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [t.mnemonics.userId, t.mnemonics.wordId],
+      set: { text, updatedAt: now },
+    })
+
+  return c.json({ ok: true, mnemonic: text, truncated: tooLong })
 })
 
 /* -------------------------------- library ------------------------------- */

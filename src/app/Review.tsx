@@ -22,6 +22,7 @@ export function Review() {
   const [revealed, setRevealed] = useState(false)
   const [typed, setTyped] = useState('')
   const [correct, setCorrect] = useState<boolean | null>(null)
+  const [hintShown, setHintShown] = useState(false)
   const [done, setDone] = useState<{ rating: Rating; cardId: number }[]>([])
   const [leeches, setLeeches] = useState(0)
   const [flushError, setFlushError] = useState<string | null>(null)
@@ -62,6 +63,7 @@ export function Review() {
     setRevealed(false)
     setTyped('')
     setCorrect(null)
+    setHintShown(false)
     if (current?.card.cardType === 'audio' && current.word) {
       void tts.speak(current.word.simplified)
     }
@@ -97,13 +99,16 @@ export function Review() {
         cardId: current.card.id,
         rating,
         durationMs: Date.now() - shownAt.current,
+        // Without this the history can't tell "knew it" from "knew it once
+        // reminded", which is the whole point of having the hint.
+        ...(hintShown ? { usedHint: true } : {}),
         ...(current.card.cardType === 'typing' ? { typedAnswer: typed } : {}),
       })
       setDone((d) => [...d, { rating, cardId: current.card.id }])
       setIndex((i) => i + 1)
       void flush()
     },
-    [current, typed, flush],
+    [current, typed, hintShown, flush],
   )
 
   const markKnown = useCallback(async () => {
@@ -118,6 +123,27 @@ export function Review() {
     }
   }, [current])
 
+  const saveMnemonic = useCallback(
+    async (text: string) => {
+      const word = current?.word
+      if (!word) return
+      const { mnemonic } = await api.saveMnemonic(word.wordId, text)
+      // Patch the in-memory session so the hook is live on this word's other
+      // cards in the same session, not only after a reload.
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              cards: prev.cards.map((c) =>
+                c.word?.wordId === word.wordId ? { ...c, word: { ...c.word, mnemonic } } : c,
+              ),
+            }
+          : prev,
+      )
+    },
+    [current],
+  )
+
   const undo = useCallback(async () => {
     const last = done.at(-1)
     if (!last) return
@@ -131,7 +157,11 @@ export function Review() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = (e.target as HTMLElement)?.tagName === 'INPUT'
+      // TEXTAREA matters as much as INPUT: the Eselsbrücke editor sits on the
+      // back of the card, where the grade keys are live. Without this, writing
+      // a mnemonic containing "3" or a space would grade the card and move on.
+      const tag = (e.target as HTMLElement)?.tagName
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA'
       if (e.key === 'z' && !typing) {
         e.preventDefault()
         void undo()
@@ -139,6 +169,12 @@ export function Review() {
       }
       if (!current) return
       if (!revealed) {
+        // Not bound while focus is in an input: on a typing card `h` has to
+        // reach the answer box. The Hint button covers that case.
+        if (e.key === 'h' && !typing && current.word?.mnemonic) {
+          e.preventDefault()
+          setHintShown(true)
+        }
         if (e.key === 'k' && !typing && current.card.state === 'new') {
           e.preventDefault()
           void markKnown()
@@ -262,6 +298,7 @@ export function Review() {
         {revealed ? (
           <CardBack
             word={current.word}
+            onSaveMnemonic={saveMnemonic}
             {...(current.card.cardType === 'typing' ? { typed, correct } : {})}
           />
         ) : (
@@ -271,6 +308,8 @@ export function Review() {
             typed={typed}
             onTyped={setTyped}
             onSubmit={reveal}
+            hintShown={hintShown}
+            onShowHint={() => setHintShown(true)}
           />
         )}
       </div>

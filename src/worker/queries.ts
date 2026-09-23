@@ -11,6 +11,8 @@ export interface WordContent {
   hskNew: string | null
   readings: { pinyin: string; meanings: string[]; isPrimary: boolean }[]
   example: { simplified: string; pinyin: string; translation: string } | null
+  /** The Eselsbrücke, revealed on demand during review. */
+  mnemonic: string | null
 }
 
 /**
@@ -23,7 +25,7 @@ export async function loadWordContent(db: Db, wordIds: number[]): Promise<Map<nu
   const out = new Map<number, WordContent>()
   if (wordIds.length === 0) return out
 
-  const [wordRows, readingRows, exampleRows] = await Promise.all([
+  const [wordRows, readingRows, exampleRows, mnemonicRows] = await Promise.all([
     inChunks(wordIds, (ids) => db.select().from(t.words).where(inArray(t.words.id, ids))),
     inChunks(wordIds, (ids) =>
       db
@@ -44,6 +46,12 @@ export async function loadWordContent(db: Db, wordIds: number[]): Promise<Map<nu
         .innerJoin(t.examples, eq(t.examples.id, t.wordExamples.exampleId))
         .where(inArray(t.wordExamples.wordId, ids)),
     ),
+    inChunks(wordIds, (ids) =>
+      db
+        .select({ wordId: t.mnemonics.wordId, text: t.mnemonics.text })
+        .from(t.mnemonics)
+        .where(and(eq(t.mnemonics.userId, OWNER_ID), inArray(t.mnemonics.wordId, ids))),
+    ),
   ])
 
   for (const w of wordRows) {
@@ -53,7 +61,12 @@ export async function loadWordContent(db: Db, wordIds: number[]): Promise<Map<nu
       hskNew: w.hskNew,
       readings: [],
       example: null,
+      mnemonic: null,
     })
+  }
+  for (const m of mnemonicRows) {
+    const entry = out.get(m.wordId)
+    if (entry) entry.mnemonic = m.text
   }
   for (const r of readingRows) {
     out.get(r.wordId)?.readings.push({

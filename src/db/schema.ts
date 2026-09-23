@@ -211,6 +211,12 @@ export const reviewLog = sqliteTable(
      * the next three months of it in one go.
      */
     source: text('source').notNull().default('review'),
+    /**
+     * Whether the Eselsbrücke was revealed before answering. Without this the
+     * history cannot tell "knew it" from "knew it once reminded", which is the
+     * distinction the hint exists to expose.
+     */
+    usedHint: integer('used_hint', { mode: 'boolean' }).notNull().default(false),
     durationMs: integer('duration_ms'),
     typedAnswer: text('typed_answer'),
     reviewedAt: integer('reviewed_at').notNull(),
@@ -222,6 +228,29 @@ export const reviewLog = sqliteTable(
     check('review_log_rating_ck', sql`${t.rating} BETWEEN 1 AND 4`),
     check('review_log_source_ck', sql`${t.source} IN ('review','seed','know')`),
   ],
+)
+
+/**
+ * An Eselsbrücke — a memory hook for a word, written by hand and revealed on
+ * demand during review rather than shown automatically, so the card stays an
+ * honest test and it becomes visible when the crutch is no longer needed.
+ *
+ * Keyed on the word rather than the card: a word carries up to three cards
+ * (recognition / typing / audio) and one hook serves all of them, because most
+ * associations work in both directions.
+ */
+export const mnemonics = sqliteTable(
+  'mnemonics',
+  {
+    userId: text('user_id').notNull(),
+    wordId: integer('word_id')
+      .notNull()
+      .references(() => words.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.wordId] })],
 )
 
 export const settings = sqliteTable('settings', {
@@ -244,3 +273,4 @@ export type DeckRow = typeof decks.$inferSelect
 export type CardRow = typeof cards.$inferSelect
 export type ReviewLogRow = typeof reviewLog.$inferSelect
 export type SettingsRow = typeof settings.$inferSelect
+export type MnemonicRow = typeof mnemonics.$inferSelect
